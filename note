@@ -1,0 +1,33 @@
+26. What you've implemented that's actually resume-worthy
+
+At this point PayRoute isn't just:
+
+"I created CRUD APIs using Spring Boot."
+
+You can legitimately say you've implemented:
+
+Java 21
+Spring Boot
+Spring Security
+JWT authentication
+PostgreSQL
+JPA/Hibernate
+BigDecimal monetary calculations
+Database transactions
+Pessimistic row locking
+Optimistic versioning
+Idempotency keys
+Database unique constraints
+Double-entry ledger
+Transaction states
+Atomic wallet transfers
+Concurrency/deadlock awareness
+
+And the most important business invariant is:
+
+For every COMPLETED transfer:
+
+
+DEBIT amount == CREDIT amount
+
+That is the invariant we'll preserve as PayRoute grows.

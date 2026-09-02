@@ -1,0 +1,104 @@
+9. Test the complete flow
+Register
+POST http://localhost:8081/auth/register
+Content-Type: application/json
+
+
+{
+    "email": "vini@gmail.com",
+    "password": "password123"
+}
+
+Expected:
+
+201 Created
+Login
+POST http://localhost:8081/auth/login
+Content-Type: application/json
+
+
+{
+    "email": "vini@gmail.com",
+    "password": "password123"
+}
+
+Expected:
+
+{
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "tokenType": "Bearer"
+}
+
+Copy the token.
+
+Call protected API
+GET http://localhost:8081/auth/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
+
+Expected:
+
+Authenticated user: vini@gmail.com
+
+Without the token:
+
+GET /auth/me
+
+you should get:
+
+401 Unauthorized
+What we've built so far
+                  PayRoute Auth Service
+                         │
+             ┌───────────┴───────────┐
+             │                       │
+       POST /register          POST /login
+             │                       │
+             ▼                       ▼
+        BCrypt Hash             Verify Password
+             │                       │
+             ▼                       ▼
+        PostgreSQL                  JWT
+                                     │
+                                     ▼
+                              Access Token
+                                     │
+                                     ▼
+                              Protected APIs
+Interview questions this step gives you
+
+Why BCrypt?
+
+Because passwords should not be stored as plaintext; BCrypt is a deliberately slow password hashing algorithm designed to make brute-force attacks more expensive.
+
+Why JWT?
+
+Because the client can carry the authentication information with each request, which works well with stateless services.
+
+Why 401 instead of 403 for missing/invalid authentication?
+
+401 → you're not authenticated.
+403 → you're authenticated but don't have permission.
+
+Why Stateless?
+
+Because the authentication state isn't stored as a server-side HTTP session.
+
+Next: Wallet Service
+
+Now we can build the first actual PayRoute business domain:
+
+                Auth Service
+                     │
+                     │ JWT
+                     ▼
+              Wallet Service
+                     │
+        ┌────────────┼────────────┐
+        ▼            ▼            ▼
+   Create Wallet   Deposit    Withdrawal
+        │            │            │
+        └────────────┼────────────┘
+                     ▼
+                 PostgreSQL
+
+We'll introduce the Wallet entity, balance handling, ownership, validation, and the first important concurrency considerations there.

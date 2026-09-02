@@ -1,0 +1,191 @@
+Wallet application.yml
+server:
+  port: 8082
+
+
+spring:
+  application:
+    name: wallet-service
+
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/payroute_wallet
+    username: postgres
+    password: postgres
+
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+
+jwt:
+  secret: ${JWT_SECRET:payroute-development-secret-key-change-this-in-production}
+
+Create DB:
+
+CREATE DATABASE payroute_wallet;
+16. Test the flow
+
+Start:
+
+Auth Service   → 8081
+Wallet Service → 8082
+
+First login through Auth Service:
+
+POST http://localhost:8081/auth/login
+
+Get:
+
+Bearer <JWT>
+Create wallet
+POST http://localhost:8082/wallets
+Authorization: Bearer <JWT>
+
+Expected:
+
+{
+    "id": 1,
+    "userId": 1,
+    "balance": 0.00,
+    "status": "ACTIVE",
+    "createdAt": "... "
+}
+Deposit
+POST http://localhost:8082/wallets/deposit
+Authorization: Bearer <JWT>
+Content-Type: application/json
+
+
+{
+    "amount": 5000
+}
+
+Balance:
+
+₹5,000
+Withdraw
+POST http://localhost:8082/wallets/withdraw
+Authorization: Bearer <JWT>
+Content-Type: application/json
+
+
+{
+    "amount": 1000
+}
+
+Balance:
+
+₹4,000
+
+If you attempt:
+
+{
+    "amount": 10000
+}
+
+you should get:
+
+Insufficient balance
+17. Important architectural point
+
+Right now the wallet database looks like:
+
+wallets
+------------------------------------------------
+id
+user_id       UNIQUE
+balance
+status
+version
+created_at
+
+We are intentionally not adding ledger entries yet.
+
+Why?
+
+Because the next major feature is the Transaction Service, and that's where the financial model becomes interesting:
+
+Transaction
+      │
+      ├── DEBIT Ledger Entry
+      │
+      └── CREDIT Ledger Entry
+
+For example:
+
+Wallet A: ₹10,000
+Wallet B: ₹2,000
+
+
+Transfer ₹1,000
+
+
+          Transaction T1001
+                 │
+        ┌────────┴────────┐
+        ▼                 ▼
+    DEBIT A          CREDIT B
+     ₹1,000            ₹1,000
+
+
+Wallet A → ₹9,000
+Wallet B → ₹3,000
+
+And this will happen atomically.
+
+One correction to our earlier architecture
+
+There's an important distinction we should maintain going forward:
+
+Deposit/withdrawal are simulations.
+
+We're not integrating Stripe/Razorpay/etc. yet.
+
+So:
+
+POST /wallets/deposit
+
+means:
+
+Simulate money entering the PayRoute wallet.
+
+It is not pretending that we've integrated a real banking/payment network.
+
+That keeps the project realistic without introducing unnecessary external payment infrastructure.
+
+What you should be able to explain now
+
+If an interviewer asks:
+
+"How do you prevent two withdrawals from spending the same balance?"
+
+You can say:
+
+"The wallet mutation is performed inside a database transaction. Before modifying the wallet, we acquire a pessimistic write lock on the wallet row using SELECT FOR UPDATE. This serializes concurrent modifications to that wallet, so two requests cannot both read and spend the same balance."
+
+That's already a very good SDE-1 backend answer.
+
+"Why did you add @Version then?"
+
+"It's an additional optimistic-locking mechanism for detecting stale entity updates. For critical balance mutations where serialization is required, I use a pessimistic database lock."
+
+Next step: Transaction Service
+
+Now we're at the most important part of PayRoute:
+
+Transaction Service
+        │
+        ├── Transfer
+        ├── Transaction Status
+        ├── Transaction History
+        ├── Idempotency
+        │
+        └── Double-entry Ledger
+
+We'll build Transaction + Ledger entities first, then implement the transfer atomically. This is where PayRoute stops looking like a CRUD project and starts demonstrating actual backend/FinTech engineering.
